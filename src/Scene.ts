@@ -222,12 +222,14 @@ namespace g {
 	 * - Standby: 初期化された状態のシーンで、シーンスタックへ追加されることを待っている状態を表す
 	 * - Active: シーンスタックの一番上にいるシーンで、ゲームのカレントシーンとして活性化されている状態を表す
 	 * - Deactive: シーンスタックにいるが一番上ではないシーンで、裏側で非活性状態になっていることを表す
+	 * - BeforeDestroyed: これから破棄されるシーンで、再利用が不可能になっている状態を表す
 	 */
 	export enum SceneState {
 		Destroyed,
 		Standby,
 		Active,
-		Deactive
+		Deactive,
+		BeforeDestroyed
 	}
 
 	export enum SceneLoadState {
@@ -254,7 +256,7 @@ namespace g {
 		 * アセットID をkeyに、対応するアセットのインスタンスを得ることができる。
 		 * keyはこのシーンの生成時、コンストラクタの第二引数 `assetIds` に渡された配列に含まれる文字列でなければならない。
 		 */
-		assets: {[key: string]: Asset};
+		assets: { [key: string]: Asset };
 
 		/**
 		 * このシーンの属するゲーム。
@@ -453,7 +455,7 @@ namespace g {
 		 */
 		constructor(param: SceneParameterObject);
 
-		constructor(gameOrParam: Game|SceneParameterObject, assetIds?: (string | DynamicAssetConfiguration)[]) {
+		constructor(gameOrParam: Game | SceneParameterObject, assetIds?: (string | DynamicAssetConfiguration)[]) {
 			var game: Game;
 			var local: LocalTickMode;
 			var tickGenerationMode: TickGenerationMode;
@@ -477,9 +479,9 @@ namespace g {
 				}
 
 				local = (param.local === undefined) ? LocalTickMode.NonLocal
-				          : (param.local === false) ? LocalTickMode.NonLocal
-				           : (param.local === true) ? LocalTickMode.FullLocal
-				                                    : <LocalTickMode>param.local;
+					: (param.local === false) ? LocalTickMode.NonLocal
+						: (param.local === true) ? LocalTickMode.FullLocal
+							: <LocalTickMode>param.local;
 				tickGenerationMode = (param.tickGenerationMode !== undefined) ? param.tickGenerationMode : TickGenerationMode.ByClock;
 				this.name = param.name;
 			}
@@ -541,7 +543,8 @@ namespace g {
 		/**
 		 * このシーンを破棄する。
 		 *
-		 * このシーンの `stateChanged` が引数 `Destroyed` でfireされる。
+		 * 破棄処理の開始時に、このシーンの `stateChanged` が引数 `BeforeDestroyed` でfireされる。
+		 * 破棄処理の終了時に、このシーンの `stateChanged` が引数 `Destroyed` でfireされる。
 		 * このシーンに紐づいている全ての `E` と全てのTimerは破棄される。
 		 * `Scene#setInterval()`, `Scene#setTimeout()` に渡された関数は呼び出されなくなる。
 		 *
@@ -549,6 +552,9 @@ namespace g {
 		 * 通常、ゲーム開発者がこのメソッドを呼び出す必要はない。
 		 */
 		destroy(): void {
+			this.state = SceneState.BeforeDestroyed;
+			this.stateChanged.fire(this.state);
+
 			// TODO: (GAMEDEV-483) Sceneスタックがそれなりの量になると重くなるのでScene#dbが必要かもしれない
 			var gameDb = this.game.db;
 			for (var p in gameDb) {
@@ -681,7 +687,7 @@ namespace g {
 		 * @param toPush 現在のシーンを残したままにするなら真、削除して遷移するなら偽を指定する。省略された場合偽
 		 */
 		gotoScene(next: Scene, toPush?: boolean): void {
-			if (! this.isCurrentScene())
+			if (!this.isCurrentScene())
 				throw ExceptionFactory.createAssertionError("Scene#gotoScene: this scene is not the current scene");
 			if (toPush) {
 				this.game.pushScene(next);
@@ -698,7 +704,7 @@ namespace g {
 		 * このシーンが現在のシーンでない場合、 `AssertionError` がthrowされる。
 		 */
 		end(): void {
-			if (! this.isCurrentScene())
+			if (!this.isCurrentScene())
 				throw ExceptionFactory.createAssertionError("Scene#end: this scene is not the current scene");
 
 			this.game.popScene();
@@ -800,7 +806,7 @@ namespace g {
 					return ret;
 				}
 			}
-			return {target: undefined, point: undefined, local: mayConsumeLocalTick};
+			return { target: undefined, point: undefined, local: mayConsumeLocalTick };
 		}
 
 		/**
