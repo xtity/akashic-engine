@@ -8,7 +8,7 @@
         "outDir": "tmp",
         "outFile": "tmp/tmp.js",
         "rootDir": ".",
-        "sourceMap": false,
+        "sourceMap": true,
         "types": []
     },
     "files": [
