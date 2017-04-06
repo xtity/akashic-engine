@@ -1,5 +1,10 @@
 # ChangeLog
 
+## 1.12.2
+
+機能追加
+ * `g.SceneState.BeforeDestroyed` を追加
+
 ## 1.12.1
 
 機能追加
